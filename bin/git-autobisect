@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# git-autobisect: entry-point shim (Bash 3.2 compatible).
+#
+# What it does: finds the Python core next to this script, picks an interpreter,
+# checks that it is Python 3.9 or newer, then replaces itself with
+#   "$python" "$libdir" "$@"
+# Running a directory makes Python execute its __main__.py with that directory
+# on sys.path, so PYTHONPATH is never set and cannot leak into user commands.
+#
+# Inputs:  all arguments are passed through unchanged.
+#          AUTOBISECT_PYTHON  interpreter to use (default: python3 from PATH).
+# Outputs: whatever the Python core prints.
+# Errors:  exit 4 with an explanation on stderr when the interpreter is missing,
+#          cannot be run, or is older than 3.9, or when the core cannot be found.
+
+set -u
+
+readonly prog="git-autobisect"
+readonly min_major=3
+readonly min_minor=9
+
+# Print an error (one line per argument) to stderr and exit 4 (runtime error).
+die() {
+  printf '%s: error: %s\n' "$prog" "$1" >&2
+  shift
+  while [ "$#" -gt 0 ]; do
+    printf '%s: %s\n' "$prog" "$1" >&2
+    shift
+  done
+  exit 4
+}
+
+# Print the physical directory containing this script, following every symlink
+# in the chain. Uses plain `readlink` because macOS has no `readlink -f`.
+script_dir() {
+  local source="$1" dir target
+  while [ -L "$source" ]; do
+    dir=$(cd -P "$(dirname "$source")" && pwd) || return 1
+    target=$(readlink "$source") || return 1
+    case "$target" in
+      /*) source="$target" ;;
+      *) source="$dir/$target" ;;
+    esac
+  done
+  cd -P "$(dirname "$source")" && pwd
+}
+
+bindir=$(script_dir "${BASH_SOURCE[0]}") ||
+  die "could not work out where $prog is installed." \
+    "Run it by its full path, or reinstall it."
+
+if [ -d "$bindir/../lib/git-autobisect" ]; then
+  libdir="$bindir/../lib/git-autobisect"
+else
+  libdir="$bindir/../src"
+fi
+[ -f "$libdir/__main__.py" ] ||
+  die "the Python core was not found at '$libdir'." \
+    "The installation is incomplete; reinstall $prog."
+
+python="${AUTOBISECT_PYTHON:-python3}"
+if [ -n "${AUTOBISECT_PYTHON:-}" ]; then
+  origin="AUTOBISECT_PYTHON is set to '$python'"
+  fix="Point AUTOBISECT_PYTHON at a Python $min_major.$min_minor+ interpreter, or unset it to use python3 from PATH."
+else
+  origin="'python3' was looked up on PATH"
+  fix="Install Python $min_major.$min_minor or newer, or set AUTOBISECT_PYTHON to the path of one."
+fi
+
+command -v "$python" >/dev/null 2>&1 ||
+  die "no Python interpreter found: $origin, but there is no such executable." "$fix"
+
+version=$("$python" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null) ||
+  die "the Python interpreter could not be run: $origin, but it failed when asked for its version." \
+    "Try running: $python --version" "$fix"
+
+major="${version%%.*}"
+minor="${version#*.}"
+case "$major$minor" in
+  '' | *[!0-9]*) version_ok=no ;;
+  *) version_ok=yes ;;
+esac
+if [ "$version_ok" = no ] || [ "$version" != "$major.$minor" ]; then
+  die "the Python interpreter did not report a usable version: $origin, but it answered '$version'." "$fix"
+fi
+
+if [ "$major" -lt "$min_major" ] || { [ "$major" -eq "$min_major" ] && [ "$minor" -lt "$min_minor" ]; }; then
+  die "Python $version is too old: $origin, but $prog needs Python $min_major.$min_minor or newer." "$fix"
+fi
+
+exec "$python" "$libdir" "$@"
