@@ -2,6 +2,7 @@
 
 Status: **accepted 11 Nov 2026**, revision 2. Technology: thin Bash 3.2 entry point + Python 3.9+ core, standard library only (ADR-0001, ADR-0002).
 
+
 ---
 
 ## 1. CLI
