@@ -1,0 +1,22 @@
+# Tooling configuration only (ruff and pytest). There is deliberately no build
+# system: git-autobisect is installed by `make install`, not by pip.
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+# D1: every module and function has a docstring. I002 (with required-imports):
+# every module starts with `from __future__ import annotations`. See CLAUDE.md.
+select = ["E", "F", "W", "I", "B", "UP", "D1"]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+known-first-party = ["autobisect"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests/unit"]
+pythonpath = ["src"]
+addopts = "-q"
