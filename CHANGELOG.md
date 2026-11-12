@@ -16,3 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tooling: `make lint` (ruff check, ruff format --check, shellcheck) and
   `make test` (pytest, bats).
 - MIT `LICENSE` and a README stub.
+- Architecture Decision Records in `docs/adr/`: an index of the ten planned ADRs
+  with a copyable template, plus ADR-0001 (language), ADR-0002 (Bash version)
+  and ADR-0010 (pipeline order).
