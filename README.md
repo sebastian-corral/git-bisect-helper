@@ -1,5 +1,7 @@
 # git-bisect-helper
 
+[![CI](https://github.com/sebastian-corral/git-bisect-helper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastian-corral/git-bisect-helper/actions/workflows/ci.yml?query=branch%3Amain)
+
 `git-autobisect` is a wrapper around `git bisect run` that finds the commit which
 introduced a regression. It has a thin Bash entry point and a Python 3.9+ core
 that uses only the standard library.

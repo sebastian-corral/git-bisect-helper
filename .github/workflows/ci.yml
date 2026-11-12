@@ -1,0 +1,118 @@
+# Lint and test git-autobisect on Linux and macOS, on Python 3.9 (the supported
+# minimum, ADR-0001) and on the current stable Python. Each job runs
+# `make lint` and `make test`, exactly as a developer does locally.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Pull requests: one group per pull request, so a new push cancels the run it
+# supersedes. Pushes to main: one group per commit, so every commit on main
+# keeps a finished run. A single group per ref is not enough for main: GitHub
+# keeps at most one pending run per group and cancels it when a newer run
+# queues, even with cancel-in-progress off.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# CI only reads the repository.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # bash -e -o pipefail; the default shell runs without pipefail.
+    shell: bash
+
+jobs:
+  lint-and-test:
+    name: Lint and test (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    # A hung test must not hold a runner for GitHub's default of six hours.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.9", "3.x"]
+        # macos-latest is arm64. There, "3.9" resolves to 3.9.13, the last 3.9
+        # release with an arm64 build. If macos-latest cannot provide Python
+        # 3.9, exclude that cell so 3.9 is tested on Ubuntu only, and record the
+        # reason here and in docs/adr/0001-language.md:
+        #   exclude:
+        #     - os: macos-latest
+        #       python: "3.9"
+        # Python 3.9 builds exist for Ubuntu 22.04 and 24.04 only. If
+        # ubuntu-latest moves to a newer release, run the 3.9 cell on
+        # ubuntu-24.04.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Nothing here pushes, so leave no token behind in the checkout.
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        id: python
+        with:
+          python-version: ${{ matrix.python }}
+          # Take the newest matching release, not the newest one cached on the
+          # runner image, so that 3.x really is the current stable Python.
+          check-latest: true
+
+      - name: Install ruff and pytest
+        # Development tools only; git-autobisect itself has no pip dependencies.
+        # ruff is pinned to the version used locally so that new rules or
+        # formatter changes cannot fail an unrelated pull request; bump both
+        # together. pytest is not pinned: on Python 3.9 pip picks pytest 8.
+        run: python -m pip install "ruff==0.17.4" pytest
+
+      - name: Install bats and shellcheck (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          packages=()
+          command -v bats >/dev/null || packages+=(bats)
+          command -v shellcheck >/dev/null || packages+=(shellcheck)
+          if [ "${#packages[@]}" -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends "${packages[@]}"
+          fi
+
+      - name: Install bats and shellcheck (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          formulae=()
+          command -v bats >/dev/null || formulae+=(bats-core)
+          command -v shellcheck >/dev/null || formulae+=(shellcheck)
+          if [ "${#formulae[@]}" -gt 0 ]; then
+            brew install "${formulae[@]}"
+          fi
+
+      - name: Point AUTOBISECT_PYTHON at the matrix interpreter
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+        run: echo "AUTOBISECT_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+
+      - name: Set a git identity for tests that create commits
+        run: |
+          git config --global user.name "git-autobisect CI"
+          git config --global user.email "ci@example.invalid"
+
+      - name: Show tool versions
+        run: |
+          echo "AUTOBISECT_PYTHON: $AUTOBISECT_PYTHON ($("$AUTOBISECT_PYTHON" --version))"
+          echo "python3 on PATH: $(command -v python3) ($(python3 --version))"
+          echo "bash on PATH: $(command -v bash) ($(bash --version | sed -n 1p))"
+          git --version
+          ruff --version
+          pytest --version
+          bats --version
+          shellcheck --version
+          bin/git-autobisect --version
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
