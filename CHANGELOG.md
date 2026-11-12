@@ -19,3 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture Decision Records in `docs/adr/`: an index of the ten planned ADRs
   with a copyable template, plus ADR-0001 (language), ADR-0002 (Bash version)
   and ADR-0010 (pipeline order).
+- Continuous integration (`.github/workflows/ci.yml`): GitHub Actions runs
+  `make lint` and `make test` on every pull request and every push to `main`,
+  on `ubuntu-latest` and `macos-latest` with Python 3.9 and the current stable
+  Python. The Ubuntu job for Python 3.9 runs on `ubuntu-24.04`, because
+  `ubuntu-latest` (26.04) has no 3.9 build. A new push to a pull request
+  cancels the run it supersedes; runs on `main` are never cancelled. The README
+  shows the CI status badge.

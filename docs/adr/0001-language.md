@@ -39,3 +39,5 @@ Rules that follow:
 - `python3` 3.9+ must be present; the shim checks this and exits 4 with a hint.
 - We support an end-of-life Python and give up newer language features until the
   minimum rises. Raising it needs a new ADR and a change to the shim's check.
+- CI tests Python 3.9 on Ubuntu 24.04 because `ubuntu-latest` (26.04) has no 3.9
+  build.
