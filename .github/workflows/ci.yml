@@ -34,19 +34,24 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # ubuntu-latest is Ubuntu 26.04, and Python 3.9 (end-of-life) has no build
+      # for it: 3.9 builds exist for Ubuntu 22.04 and 24.04 only. So the Ubuntu
+      # 3.9 job is excluded on ubuntu-latest and pinned to ubuntu-24.04 instead.
+      # If 24.04 also loses 3.9, drop the include so 3.9 is tested on macOS only,
+      # and update docs/adr/0001-language.md.
+      #
+      # macos-latest is arm64. There, "3.9" resolves to 3.9.13, the last 3.9
+      # release with an arm64 build. If macos-latest cannot provide Python 3.9,
+      # exclude it there too, and record the reason here and in the ADR.
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.9", "3.x"]
-        # macos-latest is arm64. There, "3.9" resolves to 3.9.13, the last 3.9
-        # release with an arm64 build. If macos-latest cannot provide Python
-        # 3.9, exclude that cell so 3.9 is tested on Ubuntu only, and record the
-        # reason here and in docs/adr/0001-language.md:
-        #   exclude:
-        #     - os: macos-latest
-        #       python: "3.9"
-        # Python 3.9 builds exist for Ubuntu 22.04 and 24.04 only. If
-        # ubuntu-latest moves to a newer release, run the 3.9 cell on
-        # ubuntu-24.04.
+        exclude:
+          - os: ubuntu-latest
+            python: "3.9"
+        include:
+          - os: ubuntu-24.04
+            python: "3.9"
     steps:
       - uses: actions/checkout@v7
         with:
