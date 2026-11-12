@@ -26,3 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ubuntu-latest` (26.04) has no 3.9 build. A new push to a pull request
   cancels the run it supersedes; runs on `main` are never cancelled. The README
   shows the CI status badge.
+- Shared data model (`src/autobisect/model.py`): the `Verdict` enum (`good`,
+  `bad`, `skip`) and the `CheckConfig`, `CommandResult`, `CheckResult`,
+  `PerfMeasurement` and `CommitResult` dataclasses from design section 2. Each
+  has `to_dict()` and `from_dict()`, which round-trip through JSON;
+  `from_dict()` raises `ValueError` for a missing or unexpected key or a value
+  of the wrong type. `CheckConfig` already holds every setting that affects a
+  stored result, including those whose flags arrive in M2 and M3, with their
+  defaults: clean `git clean -fdx`, 0 retries, flaky policy `strict`, no
+  timeout, 5 perf runs and 1 warm-up run.
+- Error types and exit codes (`src/autobisect/errors.py`): `AutobisectError`
+  carries a `message` and a `hint`, and its subclasses `NotFound`,
+  `UsageError`, `RuntimeFailure` and `Interrupted` exit with 1, 3, 4 and 130.
+  `verdict_to_exit_code()` maps good, bad and skip to 0, 1 and 125, the codes
+  `git bisect run` expects from a check script.
+- Top-level error handling in `main()`: an `AutobisectError` is printed on
+  stderr as `git-autobisect: error: <message>` and `hint: <hint>`, and its
+  exit code returned; Ctrl-C returns 130; any other exception prints a
+  one-line `git-autobisect: error: internal error: ...` and returns 4. The
+  "not implemented yet" message for anything but `--version` now uses this
+  format and still exits 3.
