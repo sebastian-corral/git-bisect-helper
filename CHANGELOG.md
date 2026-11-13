@@ -46,3 +46,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one-line `git-autobisect: error: internal error: ...` and returns 4. The
   "not implemented yet" message for anything but `--version` now uses this
   format and still exits 3.
+- Argument parsing (`src/autobisect/cli.py`): `parse_args(argv)` turns the
+  command line into an `Options` object holding `good`, `bad` (default `HEAD`),
+  `verbose`, `stat_only` and a `CheckConfig`. The M1 flags exist: `--bad`,
+  `--good`, `--clean`, `--no-clean`, `--setup`, `--build`, `--test` (repeatable,
+  order kept), `--run`, `--grep`, `--grep-absent`, `--verbose`, `--stat-only`,
+  `-h/--help` and `--version`. Command strings and the `--grep` pattern are
+  stored exactly as given. Abbreviated flags are not accepted.
+- `git-autobisect --help` (or `-h`): a short description, the flags and four
+  usage examples.
+- Usage errors exit 3 with a hint: no `--build`, `--test` or `--run` check;
+  `--run` without `--grep` or the reverse; `--grep-absent` without `--grep`;
+  `--clean` together with `--no-clean`; a `--grep` pattern that is not a valid
+  Python regular expression; a missing `--good`; and the errors argparse finds
+  itself (an unknown flag, a flag without its value), which no longer exit 2.
+- An empty or whitespace-only value for `--setup`, `--build`, `--test`, `--run`
+  or `--grep` is a usage error too: an empty command always succeeds and an
+  empty pattern matches any output, so the result would mean nothing. For an
+  empty `--clean`, the hint suggests `--no-clean`.
+
+### Changed
+
+- `main()` now parses the command line first. A valid command line still ends
+  with "bisecting is not implemented yet" (exit 3); an invalid one reports its
+  own usage error instead.

@@ -2,8 +2,8 @@
 
 What it does: provides ``main()``, which the launcher and ``python -m autobisect``
 call. It runs the tool and turns every error into lines on stderr and an exit
-code (design section 4). For now the tool only answers ``--version``; bisecting
-comes in later tasks.
+code (design section 4). For now the tool parses the command line and answers
+``--help`` and ``--version``; bisecting comes in later tasks.
 Inputs: command-line arguments.
 Outputs: text on stdout/stderr and an integer exit code.
 Errors: none raised; problems are reported through the exit code.
@@ -14,9 +14,8 @@ from __future__ import annotations
 import sys
 
 from autobisect import __version__
+from autobisect.cli import PROG, parse_args
 from autobisect.errors import AutobisectError, Interrupted, RuntimeFailure, UsageError
-
-PROG = "git-autobisect"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -54,17 +53,20 @@ def _run(args: list[str]) -> int:
     """Do what the command line asks and return the exit code.
 
     Inputs: ``args``, the arguments without the program name.
-    Outputs: ``--version`` prints ``git-autobisect <version>`` to stdout and
-    returns 0.
-    Errors: ``UsageError`` for anything else, because bisecting is not
-    implemented yet.
+    Outputs: ``--help`` prints the usage and ``--version`` prints
+    ``git-autobisect <version>`` to stdout; both return 0.
+    Errors: ``UsageError`` from ``cli.parse_args`` for a command line that is
+    not valid, and for a valid one too, because bisecting is not implemented yet.
     """
-    if "--version" in args:
-        print(f"{PROG} {__version__}")
-        return 0
+    try:
+        parse_args(args)
+    except SystemExit as exc:
+        # argparse has printed the help or the version and asks to exit.
+        return exc.code if isinstance(exc.code, int) else 0
     raise UsageError(
         f"bisecting is not implemented yet in version {__version__}.",
-        f"Only `{PROG} --version` works for now.",
+        f"The command line is valid, but only `{PROG} --help` and `{PROG} --version` "
+        "do something for now.",
     )
 
 

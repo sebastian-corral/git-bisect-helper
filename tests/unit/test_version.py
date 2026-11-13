@@ -21,9 +21,9 @@ def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None
     assert captured.err == ""
 
 
-def test_other_arguments_are_not_implemented(capsys: pytest.CaptureFixture[str]) -> None:
-    """Anything but `--version` reports "not implemented yet" on stderr and returns 3."""
-    assert main([]) == 3
+def test_valid_command_line_is_not_implemented(capsys: pytest.CaptureFixture[str]) -> None:
+    """A valid command line reports "not implemented yet" on stderr and returns 3."""
+    assert main(["--good", "v1.4.0", "--test", "make test"]) == 3
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "not implemented yet" in captured.err
